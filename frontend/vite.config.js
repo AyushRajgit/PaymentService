@@ -10,7 +10,7 @@ export default defineConfig(({ mode }) => {
       port: 5173,
       proxy: {
         '/amazonPay': {
-          target: env.BACKEND_URL || 'http://localhost:8080',
+          target: env.VITE_API_BASE_URL || 'http://localhost:8080',
           changeOrigin: true,
           configure: (proxy) => {
             proxy.on('proxyReq', (proxyRequest) => proxyRequest.removeHeader('origin'))
