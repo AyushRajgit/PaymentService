@@ -1,4 +1,17 @@
-const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL).replace(/\/+$/, '')
+const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/+$/, '')
+
+function connectionErrorMessage() {
+  if (API_BASE_URL) {
+    return `Can't reach the backend at ${API_BASE_URL}. Make sure it is running, VITE_API_BASE_URL in frontend/.env is correct, and backend CORS allows this frontend origin.`
+  }
+
+  return `Can't reach the backend through the Vite proxy. Make sure it is running and BACKEND_URL in frontend/.env matches its address.`
+}
+
+function isProxyConnectionError(status, responseText) {
+  return [502, 503, 504].includes(status)
+    || (status >= 500 && /(?:http )?proxy error|ECONNREFUSED|ECONNRESET|socket hang up/i.test(responseText))
+}
 
 export class ApiError extends Error {
   constructor(message, status = 0) {
@@ -66,7 +79,7 @@ async function request(path, { token, method = 'GET', body } = {}) {
       body: body === undefined ? undefined : JSON.stringify(body),
     })
   } catch {
-    throw new ApiError(`Can't reach the backend. Check that it is running and that BACKEND_URL in frontend/.env points to it.`)
+    throw new ApiError(connectionErrorMessage())
   }
 
   const raw = await response.text()
@@ -77,6 +90,10 @@ async function request(path, { token, method = 'GET', body } = {}) {
     } catch {
       // Some endpoints return plain text instead of JSON.
     }
+  }
+
+  if (!response.ok && isProxyConnectionError(response.status, typeof payload === 'string' ? payload : '')) {
+    throw new ApiError(connectionErrorMessage(), response.status)
   }
 
   if (!response.ok) {

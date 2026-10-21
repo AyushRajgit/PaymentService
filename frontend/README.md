@@ -7,9 +7,9 @@ Razorpay-inspired React dashboard connected to the Spring Boot payment APIs.
 1. Start the backend on `http://localhost:8080`.
 2. From this folder, run `npm install` and then `npm run dev`.
 
-Vite proxies the controller paths (such as `/amazonPay/auth/login`) directly to `http://localhost:8080`, so there is no `/api` prefix. If the backend uses a different address, set `BACKEND_URL` in this folder's `.env`, for example `BACKEND_URL=http://localhost:8081`.
+Vite proxies the controller paths (such as `/amazonPay/auth/login`) directly to the backend, so there is no `/api` prefix and local browser requests do not need backend CORS. The default target is `http://localhost:8080`. If the backend uses a different address, set `BACKEND_URL` in this folder's `.env`, for example `BACKEND_URL=http://localhost:8081`, then restart Vite.
 
-For deployment, serve `/amazonPay` through a same-origin reverse proxy to the backend. Alternatively, set `VITE_API_BASE_URL` to the backend URL and configure backend CORS to allow the frontend origin and the `PATCH` method. The current backend CORS configuration does not allow `PATCH`.
+For deployment, serve `/amazonPay` through a same-origin reverse proxy to the backend. Alternatively, set `VITE_API_BASE_URL` to the backend URL and configure backend CORS to allow the frontend origin and the required HTTP methods.
 
 ## API integration
 
