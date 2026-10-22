@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { api, API_BASE_URL } from './api'
 import './App.css'
 
@@ -90,14 +90,18 @@ function maskAccount(number) {
   return value.length > 4 ? `•••• ${value.slice(-4)}` : value
 }
 
-function AuthScreen({ onLogin }) {
+function AuthScreen({ onLogin, initialError = '' }) {
   const [mode, setMode] = useState('login')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [busy, setBusy] = useState(false)
-  const [error, setError] = useState('')
+  const [error, setError] = useState(initialError)
   const [notice, setNotice] = useState('')
   const isRegister = mode === 'register'
+
+  useEffect(() => {
+    if (initialError) setError(initialError)
+  }, [initialError])
 
   async function submit(event) {
     event.preventDefault()
@@ -159,6 +163,17 @@ function AuthScreen({ onLogin }) {
             {isRegister && <p className="field-help">Use a strong password you don’t use elsewhere.</p>}
             <button className="primary-button auth-submit" disabled={busy}>{busy ? <span className="button-spinner" /> : null}{busy ? 'Please wait…' : isRegister ? 'Create account' : 'Sign in securely'}<Icon name="chevron" size={16} /></button>
           </form>
+          {!isRegister && <>
+            <div className="auth-divider"><span>or</span></div>
+            <button
+              type="button"
+              className="google-login-button"
+              onClick={() => window.location.assign(`${API_BASE_URL}/amazonPay/auth/oauth2/authorization/google`)}
+            >
+              <span className="google-mark" aria-hidden="true">G</span>
+              Continue with Google
+            </button>
+          </>}
           <div className="auth-secure-note"><Icon name="shield" size={16} /><span>Your session is protected by your backend’s JWT authentication.</span></div>
           <p className="auth-api-note">Using backend routes <code>{API_BASE_URL || '/amazonPay/*'}</code></p>
         </div>
@@ -471,6 +486,9 @@ function App() {
   const [toast, setToast] = useState('')
   const [reloadKey, setReloadKey] = useState(0)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const [oauthCompleting, setOAuthCompleting] = useState(() => window.location.pathname === '/oauth2/callback')
+  const [oauthError, setOAuthError] = useState('')
+  const oauthResultProcessed = useRef(false)
 
   const title = useMemo(() => navigation.find((item) => item.key === page)?.label || 'Overview', [page])
 
@@ -498,6 +516,34 @@ function App() {
     setPage('overview')
     if (message) notify(message)
   }
+
+  useEffect(() => {
+    if (window.location.pathname !== '/oauth2/callback') return undefined
+    if (oauthResultProcessed.current) return undefined
+    oauthResultProcessed.current = true
+
+    const fragmentParams = new URLSearchParams(window.location.hash.slice(1))
+    const queryParams = new URLSearchParams(window.location.search)
+    const nextToken = fragmentParams.get('token')
+    const failed = fragmentParams.has('error') || queryParams.has('error')
+    window.history.replaceState({}, document.title, '/')
+
+    if (failed) {
+      setOAuthError('Google sign-in could not be completed. Please try again.')
+      setOAuthCompleting(false)
+      return undefined
+    }
+
+    if (!nextToken) {
+      setOAuthError('Google sign-in did not return a login token. Please try again.')
+      setOAuthCompleting(false)
+      return undefined
+    }
+
+    acceptLogin(nextToken)
+    setOAuthCompleting(false)
+    return undefined
+  }, [])
 
   useEffect(() => {
     if (!token) return undefined
@@ -609,7 +655,11 @@ function App() {
     return response
   }
 
-  if (!token) return <AuthScreen onLogin={acceptLogin} />
+  if (oauthCompleting) {
+    return <div className="oauth-callback-loading"><span className="large-spinner" /><strong>Completing Google sign-in…</strong></div>
+  }
+
+  if (!token) return <AuthScreen onLogin={acceptLogin} initialError={oauthError} />
 
   return (
     <div className="app-shell">

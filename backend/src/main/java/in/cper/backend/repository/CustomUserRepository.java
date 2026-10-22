@@ -7,4 +7,6 @@ import java.util.Optional;
 
 public interface CustomUserRepository extends JpaRepository<CustomUserDetailsEntity, Long> {
     Optional<CustomUserDetailsEntity> findByEmail(String email);
+    Optional<CustomUserDetailsEntity> findByEmailIgnoreCase(String email);
+    Optional<CustomUserDetailsEntity> findByGoogleSubject(String googleSubject);
 }

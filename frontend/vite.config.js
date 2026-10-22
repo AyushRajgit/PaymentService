@@ -8,6 +8,12 @@ export default defineConfig(({ mode }) => {
     plugins: [react()],
     server: {
       port: 5173,
+      proxy: {
+        '/amazonPay': {
+          target: env.BACKEND_URL || 'http://localhost:8080',
+          changeOrigin: true,
+        },
+      },
     },
   }
 })

@@ -28,6 +28,9 @@ public class CustomUserDetailsEntity implements UserDetails {
     @Column(nullable = false)
     private String password;
 
+    @Column(name = "google_subject", unique = true)
+    private String googleSubject;
+
     private String role;
 
     private boolean enabled = true;

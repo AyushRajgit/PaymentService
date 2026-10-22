@@ -7,7 +7,15 @@ import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.oauth2.core.OAuth2AuthenticationException;
+import org.springframework.security.oauth2.core.OAuth2Error;
+import org.springframework.security.oauth2.core.oidc.user.OidcUser;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
+import java.util.Locale;
+import java.util.UUID;
 
 @Service
 public class AuthService {
@@ -44,5 +52,42 @@ public class AuthService {
         );
 
         return tokenService.generateToken(authentication);
+    }
+
+    @Transactional
+    public String loginWithGoogle(OidcUser googleUser) {
+        String email = googleUser.getAttribute("email");
+        Boolean emailVerified = googleUser.getAttribute("email_verified");
+        String googleSubject = googleUser.getSubject();
+
+        if (email == null || email.isBlank() || !emailVerified
+                || googleSubject == null || googleSubject.isBlank()) {
+            throw new OAuth2AuthenticationException(new OAuth2Error(
+                    "invalid_google_account",
+                    "Google did not provide a verified email address.",
+                    null
+            ));
+        }
+
+        String normalizedEmail = email.trim().toLowerCase(Locale.ROOT);
+        CustomUserDetailsEntity user = userRepository.findByGoogleSubject(googleSubject)
+                .or(() -> userRepository.findByEmailIgnoreCase(normalizedEmail))
+                .orElse(null);
+
+        if (user == null) {
+            user = new CustomUserDetailsEntity();
+            user.setEmail(normalizedEmail);
+            user.setPassword(passwordEncoder.encode(UUID.randomUUID().toString()));
+            user.setRole("ROLE_USER");
+            user.setEnabled(true);
+        }
+
+        user.setGoogleSubject(googleSubject);
+        userRepository.save(user);
+
+        Authentication localAuthentication = new UsernamePasswordAuthenticationToken(
+                user.getEmail(), null, List.of()
+        );
+        return tokenService.generateToken(localAuthentication);
     }
 }
